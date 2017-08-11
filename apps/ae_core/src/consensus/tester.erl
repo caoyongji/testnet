@@ -22,8 +22,6 @@ test1() ->
     S = ae_core_fractions:test(),
     lager:info("merkel tree tests"),
     S = tree_test:test(),
-    lager:info("block hashes test"),
-    S = block_hashes:test(),
     lager:info("block test"),
     S = block:test(),
     lager:info("spk test"),

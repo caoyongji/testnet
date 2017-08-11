@@ -74,13 +74,13 @@ code_change(_OldVsn, State, _Extra) ->
 absorb_internal(Block) ->
     BlockHash = block:hash(Block),
     NextBlock = block:prev_hash(Block),
-    case block_hashes:check(BlockHash) of
+    case block_hashes:is_known(BlockHash) of
         true ->
             lager:info("We have seen this block before, so block_absorber will ignore it");
         false ->
-            true = block_hashes:check(NextBlock), %check that the previous block is known.
+            true = block_hashes:is_known(NextBlock), %check that the previous block is known.
             false = empty == block:get_by_hash(NextBlock), %check that previous block was valid
-            block_hashes:add(BlockHash),%Don't waste time checking invalid blocks more than once.
+            block_hashes:save(BlockHash), %Don't waste time checking invalid blocks more than once.
             Header = block:block_to_header(Block),
             headers:absorb([Header]),
             {true, Block2} = block:check(Block),

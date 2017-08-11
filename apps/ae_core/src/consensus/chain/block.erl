@@ -332,7 +332,7 @@ initialize_chain() ->
     block_absorber:do_save(GB),
     Header0 = block_to_header(GB),
     headers:hard_set_top(Header0),
-    block_hashes:add(hash(Header0)),
+    block_hashes:save(hash(Header0)),
     Header0.
 
 serialize(B) ->
