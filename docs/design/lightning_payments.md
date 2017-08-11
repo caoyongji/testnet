@@ -2,13 +2,15 @@
 
 
 Send money to someone on the network that you are not sharing a state channel with.
-If you have a path of channels to the recipient you can use the nodes in between as 
+If you have a path of channels to the recipient you can use the nodes in between as
 proxies in order to trustlessly send money to the recipient.
 
-Lightning payments can be accomplished by deploying the same contract along the path (see the 
+Lightning payments transfer funds between two participants connected through a single
+mediator node. It is accomplished by deploying the same contract on the two channels 
+involved(see the 
 [Aeternity whitepaper](https://blockchain.aeternity.com/%C3%A6ternity-blockchain-whitepaper.pdf),
-section II-B.1.a) that contains a hashlock. The payment is activated by revealing the secret of the 
-hashlock.
+section II-B.1.a) that contains a hashlock. The payment is activated by revealing the 
+secret of the hashlock.
 
 (For terminology used, see the glossary at the end.)
 
@@ -45,18 +47,19 @@ create new bet with
     the recipient.
     The talker message processed on the proxy node:
 1.  `channel_feeder:lock_spend/7`
-    1.  First check that this channel is in the on-chain state with sufficient depth
+    1.  First check that this channel is in the on-chain state with sufficient funds
         *   fail if amount <= 0
         *   fail if fee <= lightning fee
-    3.  create signed return payment SPK (sanity check: test that same as the
+    3.  create signed payment SPK thet debits the sender
+        (sanity check: test that same as the
         original one without the signature)
     4.  update channel data on the channel manager to
         * me: received (unsigned) SPK
         * them: received signed SPK
         * add empty binary to ScriptSig of both sides
     5.  add code, sender, recipient to arbitrage
-    6.  create locked transaction to recipient with negative amount
-2.  Return the signed SPK for return payment to sender.
+    6.  create locked crediting transaction towards the recipient
+2.  Return the signed SPK for debit payment to sender.
 
 #### ask channel_manager to update data of the channel to proxy node
     with the received SPK on both sides and adding empty signatures to ScriptSigs.
@@ -64,28 +67,46 @@ create new bet with
 
 ### Activating payments on the path: pulling the channel
     `api:pull_channel_state/1`, takes IP, port
-1.   Fetch the pubkey of the proxy node
-2.   Increment the entropy of the channel by 1
-3.   Make sure the channel is live.
-4.   Fetch channel data and its signed SPK from the proxy server
-5.   Simplify these
-     TODO: elaborate!
-6.   Sync the result with the proxy node
-7.   Decrypt messages in CD, learn secrets in them
-8.   Unlock the secret.
+1.  Fetch the pubkey of the proxy node
+2.  Increment the entropy of the channel by 1
+3.  Make sure the channel is live.
+4.  Fetch from the proxy server his view of
+    *   the channel data and
+    *   the SPK in it on our side, signed by him
+5.  Simplify these
+    `channel_feeder:they_simplify/3`, takes the public key of the proxy node,
+    and the data data we fetched from the proxy node above
+    1.  test if
+        *   the channel id is live in the view of both sides
+        *   the signature on the SPK fetched is valid
+        *   the the fetched SPK and channel data are consistent
+    2.  forced update of our SPK using our SS and their one from the fetched CD
+        `spk:forced_update/3`
+        @@ TODO: eleborate
+    3.  Check if the update returns the SPK and SS of other side.
+        *   If it does, accept it on our side: update our CD with these on our side.
+            Sign and return the received SPK. This means tha if the other party found
+            a way to unlock funds, we agree to give them.
+        *   If the update does not match it, accept if it is an improvement on our side.
+            (i.e., accept if they want to give us money.) (@@TODO: elaborate improvement)
+            Otherwise, try to unlock bets with the new SS received from the proxy node in
+            the CD (their side).
+6.  Sync the result with the proxy node
+7.  Decrypt messages in CD, learn secrets in them
+8.  Unlock the secret.
 
 
 ## Glossary
 
 
 ### account
-    A pubkey identifying a participant
+    A pubkey identifying a participant.
 
 ### channel
-    Connection between two participants
+    Connection between two participants, created in order to perform some transctions.
 
 ### CID
-    Channel ID. A unique number assigned to the channel on the node
+    Channel ID. A network-wide unique number assigned to the channel.
 
 ### bet
     Contains:
@@ -109,14 +130,15 @@ create new bet with
         created and used during execution
     *   nonce
     *   entropy
-    *   delay: the maximum time to get the money out of the channel. Used in order to have
-        a chance to act when the other party tries to close the channel dishonestly, 
-        taking its money. 
+    *   delay: a delay value the two participants agreed upon when the channel was created.
+        When one of them tries to close the channel unilaterally, the other has this much
+        time to intervene. It is advisable to agree on a large enough value in order to
+        protect ourselves from the other party's possible dishonesty.
 
 ### SS, script sig
     List of items to be signed by one of the participants.
 
-### channel data
+### CD, channel data
     *   me
         the highest-nonced SPK signed by me
     *   them
