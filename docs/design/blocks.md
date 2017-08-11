@@ -1,10 +1,5 @@
 # Block
 
-The following describes the block-related data structures as exchanged
-among peers in the network.  It also maps, where possible, items in
-such network-exchanged data structures to items in the internal
-representation of data structures in the Erlang codebase.
-
 The following describes how things are meant to be, and maps to how
 things are in the Erlang codebase.  Items described here and known not
 to be reflected yet in the codebase are noted with a *TO-BE* prefix.
@@ -19,7 +14,14 @@ to be reflected yet in the codebase are noted with a *TO-BE* prefix.
 nodes from the leaf to the root proving the inclusion of the chosen
 leaf datum.
 
-## Block
+## Block-related data structures exchanged on the network
+
+The following describes the block-related data structures as exchanged
+among peers in the network.  It also maps, where possible, items in
+such network-exchanged data structures to items in the internal
+representation of data structures in the Erlang codebase.
+
+### Block
 
 The block includes:
 * [Block header](#block-header);
@@ -46,7 +48,7 @@ The block includes:
 
 See also [aeternity whitepaper] subsection "II-A.4) Block contents".
 
-## Block header
+### Block header
 
 The block header includes:
 * Hash of previous block header;
@@ -117,6 +119,118 @@ DB = 16,
 
 See also [aeternity whitepaper] subsection "II-E.2) Light clients".
 
+## Node-local model of blocks
+
+The following describes the node-local internal representation of
+blocks, as per Erlang codebase, both from a static and a dynamic point
+of view.
+
+### Node-local block-related structures
+
+The internal representation of each observed valid block is persisted
+as `blocks/<HashOfBlockHeaderInBase58>.db` - see `block:save/1`.
+
+The header of the most recent block in the local view of the block
+chain is kept in memory by process `headers` - see field `top` of the
+state of the `headers` process, in module `headers`.
+
+Some block headers, including at least the header of the most recent
+block in the local view of the block chain, are kept in memory by
+process `headers` - see field `headers` of the state of the `headers`
+process, in module `headers` - in a dictionary having as key the hash
+of the block header and as value the block header.
+
+The hash of each observed header - both valid and invalid - is
+persisted, as part of a set of such hashes, as file
+`data/block_hashes.db` - see `block_hashes:save/1`.  Such set of
+hashes is also kept in memory in process `block_hashes`, that at its
+initialization attempts to restore its in-memory copy from the
+persisted copy.
+
+The observed valid block headers are persisted as file
+`data/headers.db`.  Such headers are appended to the file in order of
+observation.
+
+### Node-local block-related workflows
+
+#### Initialization of `tx_pool`
+
+At startup, the node starts the `tx_pool` process, that at its
+initialization:
+* Computes the internal representation of the genesis block;
+* Persists (`block:save/1`) the genesis block, by hash of its header;
+* Synchronously resets the state of process `headers`
+  (`headers:hard_set_top/1`) to the genesis block;
+* Delegates asynchronously process `block_hashes`
+  (`block_hashes:save/1`) to persist, keeping a copy in memory, the
+  hash of the header of the genesis block.
+
+#### Block absorption following successfully mined block
+
+The node mines:
+* Continuously - as process `mine` as defined in module `mine`; and
+* At request received on the internal API at path `/v1/mine-block`,
+  that invokes Erlang function `api:mine_block/2` - as the process
+  handling the HTTP request.
+
+Both entry points for mining invoke `block:mine/2`.  After
+successfully mining a block, the process absorbs the block.
+
+When absorbing the block:
+
+* (See `headers:absorb/1` for the implementation.) If process
+  `headers` does not have yet the block header, the process absorbing
+  the block:
+  * Validates the header;
+  * Requests synchronously process `headers` (see
+    `headers:handle_call` with request `{add, Hash, Header}`) to add
+    the header to its collection of headers, that in turn:
+    * Unconditionally includes such header in its collection of
+      headers;
+    * Depending on `#header.accumulative_difficulty`, it considers
+      such header as the most recent one in its local view of the
+      block chain.
+  * Persists the header in the sequence of observed valid block
+    headers.
+
+* (See `block_absorber:save/1` for the implementation.) The process
+  absorbing the block requests synchronously process `block_absorber`
+  to absorb the block, that in turn:
+  * If the block header has already been observed, ignores the block;
+  * If the block header has not been observed yet:
+    * Checks that the block before such block (1) has a header that
+      has been observed and (2) is a block that is both observed and
+      valid;
+    * Delegates asynchronously process `block_hashes`
+      (`block_hashes:save/1`) to persist, keeping a copy in memory,
+      the hash of the header;
+    * (Calls `headers:absorb/1` - again;)
+    * Checks the block (`B`), and computes the internal representation
+      of the block `B2` with the internal representation of the state
+      trees;
+    * Persists (`block:save/1`) block `B2`, by hash of its header;
+    * (Asserts that the hash of the block header of `B2` is the same
+      as the one of `B`;)
+    * Sleeps for 100 ms;
+    * As a sequence of three distinct non-atomic operations:
+      * Retrieves pending transactions (`tx_pool:data/0`);
+      * Synchronously requests process `tx_pool` to reset its state,
+        that involves:
+        * Contacting process `headers` for the most recent block
+          header;
+        * Identifying the most recent available observed valid block
+          in the chain identified by such most recent block header
+          retrieved from process `headers`.
+      * Asynchronously feeds - one by one - the previously retrieved
+        pending transactions to the `tx_pool` process.
+
+#### Block absorption following network interactions
+
+Block absorption following network interactions is similar to block
+absorption following successfully mined block.  See
+`block_absorber:save/1` and its asynchronous counterpart
+`block_absorber:enqueue/1`.
+
 ## References
 
 [aeternity whitepaper]: https://blockchain.aeternity.com/%C3%A6ternity-blockchain-whitepaper.pdf
@@ -131,10 +245,16 @@ Confirm from the codebase that `#leaf.meta` (as opposed to `#leaf.value`) is not
 
 Detail Merkle tree and Merkle proof.
 
-Decide whether to include `#header.accumulative_difficulty` in this description.
+Include `#header.accumulative_difficulty` in this description.
 
 Decide whether to include `#block.comment` in this description.
 
 Confirm exclusion of `#block.prev_hashes` from this description.
 
 Clarify why governance tree is not considered for computation of hash `#header.trees_hash`.
+
+Clarify appended-to-but-not-read-from file `data/headers.db`.
+
+Clarify multiple calls to `headers:absorb/1`.
+
+Clarify why sleeping 100 ms after absorbing block.

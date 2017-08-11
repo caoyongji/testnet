@@ -67,7 +67,7 @@ absorb([Header | T]) ->
             Header#header.height > 1,
             {true, _} = check_difficulty(Header),%check that the difficulty written on the block is correctly calculated
             ok = gen_server:call(?MODULE, {add, Hash, Header}),
-            file:write_file(constants:headers_file(), serialize(Header), [append]) %we keep all the good headers we know about in the order we learned about them. This is used for sharing the entire history of headers quickly.
+            file:write_file(constants:headers_file(), serialize(Header), [append]) %we keep all the good headers we know about in the order we learned about them. This is used for sharing the entire history of headers quickly. Q. Why is this state stored but unused?
     end,
     absorb(T).
 
@@ -239,7 +239,7 @@ handle_call({add, Hash, Header}, _From, State) ->
             true -> Header;
             false -> AA
         end,
-    Headers = dict:store(Hash, Header, State#s.headers),
+    Headers = dict:store(Hash, Header, State#s.headers), %% Q. Why adding header to dictionary of headers even if not considered new top?
     {reply, ok, State#s{headers = Headers, top = H}}.
 
 handle_cast(_, State) ->
