@@ -68,7 +68,6 @@ initial_channels() -> %Around 10000 channels.
 root() -> "data/".
 block_hashes() -> root() ++ "block_hashes.db".
 keys() -> "keys/keys.db".
-top() -> root() ++ "top.db".
 channel_manager() -> root() ++ "channel_manager.db".
 secrets() -> root() ++ "secrets.db".
 order_book() -> root() ++ "order_book.db".
