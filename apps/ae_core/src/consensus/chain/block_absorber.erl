@@ -4,7 +4,6 @@
 %% API
 -export([enqueue/1, %% async request
          save/1,    %% returns after saving
-         do_save/1,
          garbage/0]).
 
 -export([start_link/0]).
@@ -27,13 +26,6 @@ save(InputBlocks) when is_list(InputBlocks) ->
     [save(InputBlock) || InputBlock <- InputBlocks];
 save(InputBlock) ->
     gen_server:call(?MODULE, {doit, InputBlock}).
-
-do_save(BlockPlus) ->
-    CompressedBlockPlus = zlib:compress(term_to_binary(BlockPlus)),
-    binary_to_term(zlib:uncompress(CompressedBlockPlus)), % Sanity check, not important for long-term
-    Hash = block:hash(BlockPlus),
-    BlockFile = ae_utils:binary_to_file_path(blocks, Hash),
-    ok = db:save(BlockFile, CompressedBlockPlus).
 
 garbage() ->
     gen_server:cast(?MODULE, garbage).
@@ -84,7 +76,7 @@ absorb_internal(Block) ->
             Header = block:block_to_header(Block),
             headers:absorb([Header]),
             {true, Block2} = block:check(Block),
-            do_save(Block2),
+            block:save(Block2),
             BlockHash = block:hash(Block2),
             timer:sleep(100),
             {_, _, Txs} = tx_pool:data(),

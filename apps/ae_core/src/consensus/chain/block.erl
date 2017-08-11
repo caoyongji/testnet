@@ -1,8 +1,9 @@
 -module(block).
 
 -export([block_to_header/1, test/0,
-         height/1, prev_hash/1, txs/1, trees_hash/1, time/1, difficulty/1, comment/1, version/1, pow/1, trees/1, prev_hashes/1, 
-         get_by_height_in_chain/2, get_by_height/1, get_with_sizecap/2, hash/1, get_by_hash/1, initialize_chain/0, make/4,
+         height/1, prev_hash/1, txs/1, trees_hash/1, time/1, difficulty/1, comment/1, version/1, pow/1, trees/1, prev_hashes/1,
+         save/1, get_by_hash/1,
+         get_by_height_in_chain/2, get_by_height/1, get_with_sizecap/2, hash/1, initialize_chain/0, make/4,
          mine/1, mine/2, mine2/2, check/1, 
          guess_number_of_cpu_cores/0, top/0,
          serialize/1, deserialize/1
@@ -34,6 +35,8 @@
 %you can know if a proof has been manipulated immediately.
 
 -opaque block() :: #block{}.
+-type serialized_block() :: binary(). %% For network.
+-type persisted_block() :: binary(). %% For local storage.
 
 height(B) -> B#block.height.
 prev_hash(B) -> B#block.prev_hash.
@@ -94,6 +97,17 @@ calculate_prev_hashes([PH|Hashes], Height, N) ->
             calculate_prev_hashes([hash(B)|[PH|Hashes]], NHeight, N*2)
     end.
 
+-spec save(block()) -> ok.
+save(B) ->
+    save_by_hash(hash(B), B).
+
+-spec save_by_hash(headers:block_header_hash(), block()) -> ok.
+save_by_hash(H, B) ->
+    SB = serialize_for_local_storage(B),
+    deserialize_for_local_storage(SB), % Sanity check, not important for long-term
+    BlockFile = ae_utils:binary_to_file_path(blocks, H),
+    ok = db:save(BlockFile, SB).
+
 -spec get_by_hash(Hash) -> empty | block() when
       Hash :: block()
             | headers:header()
@@ -104,7 +118,7 @@ get_by_hash(H) ->
     BlockFile = ae_utils:binary_to_file_path(blocks, Hash),
     case db:read(BlockFile) of
         [] -> empty;
-        Block -> binary_to_term(zlib:uncompress(Block))
+        Block -> deserialize_for_local_storage(Block)
     end.
 
 -spec top() -> block().
@@ -182,6 +196,8 @@ prev_hash(N, BP) -> %N=0 should be the same as prev_hash(BP)
 
 time_now() ->
     (os:system_time() div (1000000 * constants:time_units())) - constants:start_time().
+
+-spec genesis_maker() -> block().
 genesis_maker() ->
     Pub = constants:master_pub(),
     First = accounts:new(Pub, constants:initial_coins(), 0),
@@ -198,6 +214,7 @@ genesis_maker() ->
            version = constants:version(),
            trees = Trees
           }.
+
 block_reward(Trees, Height, ID, PH) -> 
     OldAccounts = trees:accounts(Trees),
     Governance = trees:governance(Trees),
@@ -329,13 +346,14 @@ check(Block) ->
 
 initialize_chain() -> 
     GB = genesis_maker(),
-    block_absorber:do_save(GB),
+    save(GB),
     Header0 = block_to_header(GB),
     headers:hard_set_top(Header0),
     block_hashes:save(hash(Header0)),
     Header0.
 
-serialize(B) ->
+-spec serialize(block()) -> serialized_block().
+serialize(B) -> %% For network.
     HB = constants:hash_size()*8,
     HtB = constants:height_bits(),
     TB = constants:time_bits(),
@@ -357,7 +375,8 @@ serialize(B) ->
       Rest/binary %% TODO Define proper serialization e.g. for atoms.
     >>.
 
-deserialize(B) ->
+-spec deserialize(serialized_block()) -> block().
+deserialize(B) -> %% For network.
     HB = constants:hash_size()*8,
     HtB = constants:height_bits(),
     TB = constants:time_bits(),
@@ -389,6 +408,13 @@ deserialize(B) ->
            trees = trees:new(0, 0, 0, 0, 0, 0), %% Dummy internal representation of state trees.
            comment = <<>>}. %% TODO Reconsider comment and its serialization.
 
+-spec serialize_for_local_storage(block()) -> persisted_block().
+serialize_for_local_storage(B) ->
+    zlib:compress(term_to_binary(B)).
+
+-spec deserialize_for_local_storage(persisted_block()) -> block().
+deserialize_for_local_storage(B) ->
+    binary_to_term(zlib:uncompress(B)).
 
 %% Tests
 
