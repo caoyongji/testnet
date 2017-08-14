@@ -1,23 +1,26 @@
-There are many kinds of shares.
-Every kind of share can be found in 2 forms, positive and negative.
+Shares can be found in 2 forms, positive and negative, and are needed to bet on the yes/no oracle outcomes.
+
 If you own positive shares of form X, and receive negative shares of the same form, they cancel out and become normal AE tokens.
+
 Similarly, AE tokens can be transformed into equal amounts of positive and negative forms of the same share.
+
 Each kind of share has the same difficulty written on it.
 
-Positive shares are more valuable when the blockchain's difficulty is expected to stay above the difficulty written on the share.
-Negative shares are more valuable when the blockchain's difficulty is expected to stay below the difficulty written on the share.
+Shares are deserialized by `spk:run`. 
 
-All shares have a half-life. They are either disappearing, or converting into AE tokens.
-If the difficulty is lower than the amount written on a share, only the negative form pays, the positive one disappears.
-If the difficulty is above the amount written on the a share, then only the positive form pays, the negative one disappears.
+`shares:to_code` is only used by `test_txs:test(10)`.
 
-Owning these shares is a way to hedge against fluctuations in the price of the token.
-Looking at the market for shares is a way to predict where the price of the token is going.
+Share id is the difficulty at the time the share was issued. This doesn't look like it's implemented, though.
 
+`modified` is the height of the block when the share was issued.
 
-Shares don't depend on the difficulty per block, rather they depend on how much work do you have to do to make one more token.
+Shares are created from an oracle bet (`oracle_bets:to_shares`) as two-element list of positive shares, followed by negative shares. This happens when you create an oracle shares transaction (`oracle_shares_tx`). 
 
+This is normally done by calling `api:oracle_shares` but also happens when creating a transaction digest (`txs:digest`), e.g. from `block:new_trees`.
 
-If the difficulty is above e^(A*N) then the positive are converting to AE and the negative are disappearing.
-If the difficulty is below e^(A*N) then the positive are disappearing and the negative are converting to AE.
-A is a constant to set the step size between types.
+Shares pay out (`shares:get_paid`) only if the block difficulty at the time the share was issued is greater than the share difficulty.
+
+The conversion ratio of shares to tokens is controlled by the `shares_conversion` governance value.
+
+Shares are converted to tokens by `shares:receive_shares`, called from `accounts:receive_shares`.
+

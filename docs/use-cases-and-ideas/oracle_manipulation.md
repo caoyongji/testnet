@@ -1,7 +1,9 @@
 What if someone payed money into the market that we use as an oracle to try to get it to lie?
 
 Example: we were betting on a football game, but now the game is over and we all know that Alice won.
+
 The correct outcome is that decision A is 99.99% likely to be the fork of the blockchain with high difficulty, and decision B is 0.01% likely to be the fork with high difficulty.
+
 An attacker keeps buying B to push the price above 50%.
 Defenders show up to buy shares of A at one-to-one odds.
 The attackers own lots of tokens on fork A, and update their software to use fork A.
