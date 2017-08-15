@@ -21,7 +21,7 @@ api:new_governance_oracle(Start, GovName, GovAmount, RecentDifficultyOracle).
 ```
 
 #### Bet in an oracle
-type is one of the atoms in this list: [true, false, bad]
+type is "true", "false" or "bad question" - represented as an integer in the range 1-3.
 You can either bet that the answer to the question is true or false, or you can bet that it is a bad question.
 ```
 api:oracle_bet(OracleID, Type, Amount).
