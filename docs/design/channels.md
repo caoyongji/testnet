@@ -64,3 +64,14 @@ The data that gets recorded on-chain for each channel is:
 - How much money is in the channel. 
 - The 2 accounts ids that control the channel.
 
+#### Development notes
+
+#### Issues
+
+`api:market_match` 
+
+Market making in a channel is implemented in `market.fs` (e.g. the order book) whereas betting against the oracle is implemented in the code. The Forth code is difficult to understand and will be even harder to test. We should rewrite market-making through an agent written in Erlang. 
+
+`market:market_smart_contract` combines `market.fs` with `oracle_bet.fs`.
+
+Betting and markets are heavily dependent on Chalang and Forth code.

@@ -55,10 +55,25 @@ Also, in `oracle_bet_tx:doit2` when inserting one last bet. It's done for an ass
 
 The account starting the oracle gets debited the initial liquidity, plus fee. 
 
-Q: What does initial liquidity affect? Is it necessary?
+#### Issues
 
-Q: Why is the final bet in `oracle_close_tx` created using `constants:oracle_initial_liquidity` and not the governance value?
+It's unclear who should be starting the difficulty oracle and who should be closing it. 
 
-Q: Shares are converted to tokens at a ratio. Doesn't this potentially create new tokens or burn some?
+An extra bet that's added when closing the oracle may extend oracle running time by a week if there's not enough volume. This implies that we may not be able to start a regular question oracle for a week if not enough people are betting on the difficulty oracle.
 
-Q: How do I know if there are unmatched orders for me to get back via `api:oracle_unmatched`? Also, where do I get required order id?
+The whole difficulty requirement seems artificial and unnecessary. 
+
+The final bet in `oracle_close_tx` is created using `constants:oracle_initial_liquidity` and not the governance value.
+
+Shares are converted to tokens [using a ratio](shares.md). This may introduce new tokens into the system. 
+
+Shares are discarded unless their difficulty is less than the block difficulty at the time the shares were last modified. The tokens wagered seem to be lost in this case. 
+
+One is supposed to manually ask for shares back if there are unmatched trades sitting in the order book when the oracle is closed. It's not clear or even possible to check if there are unmatched shares in the oracle order book. Also, why are these not distributed automatically? Last but not least, getting the shares back required supplying the order id but one is never returned to the user when placing a bet.
+
+It's not clear why initial liquidity is needed. Assuming the requirement to have [shares](shares.md) is dropped, bets could be placed and settled entirely in tokens. Suppose user A placed a Yes bet for X tokens and user B placed a No bet for Y tokens. If A won then B's tokens should go to A. The amount should be Y if A's bet X is greater and X otherwise. 
+
+Bets (orders) should be kept in order of arrival. If the total amount of money wagered on one side is greater than the other then bets should be settled in order of arrival. Some winning users then may not double their money but will always get their money back. 
+
+N.B.The above needs more looking into as wagering as described will be double or nothing!
+
