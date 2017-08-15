@@ -89,6 +89,8 @@ The block header includes:
   #header.difficulty
   #block.difficulty
   ```
+  * The computation of difficulty is described
+    [here](/docs/design/difficulty.md).
 * Proof of work.
   ```erlang
   #header.nonce
@@ -236,8 +238,6 @@ absorption following successfully mined block.  See
 [aeternity whitepaper]: https://blockchain.aeternity.com/%C3%A6ternity-blockchain-whitepaper.pdf
 
 ## TODO
-
-Check in codebase and describe computation of difficulty. E.g. every 2000th block retargets the difficulty based on the previous 2000 block headers.
 
 Assuming that transactions in block are meant to be able to be applied in arbitrary order on the state Merkle trees, both when making the block header to-be-mined and when verifying the block, explicate constraints on transactions in block. E.g. can a block include for the same account a transaction crediting it and another debiting it - where the debiting transaction would make the account balance negative if applied before the crediting one?
 
