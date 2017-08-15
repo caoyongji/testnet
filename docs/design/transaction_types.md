@@ -10,8 +10,8 @@ These are the 18 types of transaction that can be in blocks.
 * account_recycle
 
 7 transactions for channels:
-* channel_new
-* channel_grow
+* new_channel
+* grow_channel
 * channel_team_close
 * channel_solo_close
 * channel_slash
@@ -47,7 +47,7 @@ Warning, this deletes all your share. Make sure to use account_spend to move all
 
 If an account runs out of money anyone can do this transaction to delete the account. The user who deletes the empty account recieves a reward which is smaller than the cost of creating an account.
 
-# channel_new
+# new_channel
 
 This creates a new channel on the blockchain.
 It needs to be signed by both participants in the channel.
@@ -56,7 +56,7 @@ Channels can only hold AE tokens.
 There is a record of recently closed channels. You can't reuse an id from a recently closed channel.
 The channel loses a little money every block. This is to stop attackers from making lots of channels to spam the network.
 
-# channel_grow
+# grow_channel
 
 This adds more money to an existing channel.
 Both parties need to sign.
