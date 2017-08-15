@@ -53,7 +53,7 @@ This creates a new channel on the blockchain.
 It needs to be signed by both participants in the channel.
 It takes money from both participant's accounts to put into the channel.
 Channels can only hold AE tokens.
-There is a record of recently closed channels. You can't reuse an id from a recently closed channel.
+There is a record of recently closed channels. You can't reuse an id from a recently closed channel. You can reuse an id from a channel closed not recently, i.e. modified at most `channel_closed_time` - as per governance - blocks ago.
 The channel loses a little money every block. This is to stop attackers from making lots of channels to spam the network.
 
 # grow_channel
@@ -79,7 +79,7 @@ If your partner disappears, or refuses to close the channel, this is how you can
 If channel participant does a channel_solo_close at the wrong state, this is how you stop them.
 Anyone is allowed to publish this tx, it doesn't have to be one of the two channel participants.
 The blockchain records who closed a channel most recently in a tree.
-channel ids can't be reused for a long time, so the record will be good.
+channel ids can't be reused for a long time, specifically for `channel_closed_time` - as per governance - blocks since the last modification, so the record will be good.
 The channel can be slashed many times, but each time it is slashed the evidence needs to be for a higher nonce.
 
 # channel_timeout

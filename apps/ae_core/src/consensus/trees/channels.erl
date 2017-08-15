@@ -17,14 +17,14 @@
 		  amount = 0, %this is how we remember the outcome of the last contract we tested, that way we can undo it.
 		  nonce = 0,%How many times has this channel-state been updated. If your partner has a state that was updated more times, then they can use it to replace your final state.
 		  timeout_height = 0,%when one partner disappears, the other partner needs to wait so many blocks until they can access their money. This records the time they started waiting. 
-		  last_modified = 0,%this is used so that the owners of the channel can pay a fee for how long the channel has been open.
+                  last_modified :: headers:height(), %this is used so that the owners of the channel can pay a fee for how long the channel has been open. This is also used for deciding whether a channel has been closed for long enough for reusing its id.
 % we can set timeout_height to 0 to signify that we aren't in timeout mode. So we don't need the timeout flag.
 		  %mode = 0,%0 means an active channel where money can be spent. 1 means that the channel is being closed by acc1. 2 means that the channel is being closed by acc2.
 		  entropy = 0, %This is a nonce so that old channel contracts can't be reused, even if you make a new channel with the same partner you previously had a channel with.
 		  delay = 0,%this is how long you have to wait since "last_modified" to do a channel_timeout_tx.
 		  %we need to store this between a solo_close_tx and a channel_timeout_tx. That way we know we waited for long enough.
 		  slasher = 0, %this is how we remember who was the last user to do a slash on a channel. If he is the last person to slash, then he gets a reward.
-		  closed = false, %when a channel is closed, set this to 1. The channel can no longer be modified, but the VM has access to the state it was closed on. So you can use a different channel to trustlessly pay whoever slashed.
+		  closed = false :: boolean(), %when a channel is closed, set this to true. The channel can no longer be modified, but the VM has access to the state it was closed on. So you can use a different channel to trustlessly pay whoever slashed.
 		  shares = 0 %This is a pointer to the root of a tree that holds all the shares.
 		  }%
        ).
