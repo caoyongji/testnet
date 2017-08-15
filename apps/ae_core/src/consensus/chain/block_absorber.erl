@@ -4,7 +4,6 @@
 %% API
 -export([enqueue/1, %% async request
          save/1,    %% returns after saving
-         do_save/1,
          garbage/0]).
 
 -export([start_link/0]).
@@ -20,20 +19,13 @@
 enqueue(InputBlocks) when is_list(InputBlocks) ->
     [enqueue(InputBlock) || InputBlock <- InputBlocks];
 enqueue(InputBlock) ->
-    headers:absorb([block:block_to_header(InputBlock)]),
+    headers:absorb([block:block_to_header(InputBlock)]), %% Q. Why invoking `headers:absorb/1`, that is redundant with `absorb_internal/1` called afterwards by the gen_server? Or equivalently - why not invoking `headers:absorb/1` also in `save/1` and removing it from `absorb_internal/1`?
     gen_server:cast(?MODULE, {doit, InputBlock}).
 
 save(InputBlocks) when is_list(InputBlocks) ->
     [save(InputBlock) || InputBlock <- InputBlocks];
 save(InputBlock) ->
     gen_server:call(?MODULE, {doit, InputBlock}).
-
-do_save(BlockPlus) ->
-    CompressedBlockPlus = zlib:compress(term_to_binary(BlockPlus)),
-    binary_to_term(zlib:uncompress(CompressedBlockPlus)), % Sanity check, not important for long-term
-    Hash = block:hash(BlockPlus),
-    BlockFile = ae_utils:binary_to_file_path(blocks, Hash),
-    ok = db:save(BlockFile, CompressedBlockPlus).
 
 garbage() ->
     gen_server:cast(?MODULE, garbage).
@@ -73,19 +65,19 @@ code_change(_OldVsn, State, _Extra) ->
 
 absorb_internal(Block) ->
     BlockHash = block:hash(Block),
-    NextBlock = block:prev_hash(Block),
-    case block_hashes:check(BlockHash) of
+    case block_hashes:is_known(BlockHash) of
         true ->
             lager:info("We have seen this block before, so block_absorber will ignore it");
         false ->
-            true = block_hashes:check(NextBlock), %check that the previous block is known.
-            false = empty == block:get_by_hash(NextBlock), %check that previous block was valid
-            block_hashes:add(BlockHash),%Don't waste time checking invalid blocks more than once.
+            PrevBlock = block:prev_hash(Block),
+            true = block_hashes:is_known(PrevBlock), %check that the previous block is known.
+            false = empty == block:get_by_hash(PrevBlock), %check that previous block was valid
+            block_hashes:save(BlockHash), %Don't waste time checking invalid blocks more than once.
             Header = block:block_to_header(Block),
             headers:absorb([Header]),
             {true, Block2} = block:check(Block),
-            do_save(Block2),
-            BlockHash = block:hash(Block2),
+            block:save(Block2),
+            BlockHash = block:hash(Block2), %% Q. Why asserting after having persisted the block among the ones meant to be observed and *valid*?
             timer:sleep(100),
             {_, _, Txs} = tx_pool:data(),
             tx_pool:dump(),

@@ -71,7 +71,7 @@ handle_call({absorb, NewTrees, Txs, _}, _From, _) ->
     {reply, 0, #f{txs = Txs, trees = NewTrees}};
 handle_call(data, _From, F) ->
     {ok, Header} = headers:read(block:hash(headers:top())),
-    H = headers:height(Header),
+    H = headers:height(Header), %% Q. Why not using height in state? Change introduced in commit bbde8de
     {reply, {F#f.trees, H, lists:reverse(F#f.txs)}, F}.
 
 handle_cast(_Msg, State) ->
