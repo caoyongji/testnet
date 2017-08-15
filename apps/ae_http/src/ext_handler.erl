@@ -40,6 +40,8 @@ doit({give_block, SerializedSignedBlock}) ->
 doit({block, N}) when is_integer(N), N >= 0 ->
     lager:info("received request for block ~p", [N]),
     {ok, block:serialize(block:get_by_height(N))};
+doit({block_sizecap, N, Cap}) ->
+    {ok, block:get_with_sizecap(N, Cap - 10)};  %-10 for some begining and end addictional characters
 doit({header, N}) -> 
     {ok, block:block_to_header(block:get_by_height(N))};
 doit({headers, Many, N}) -> 

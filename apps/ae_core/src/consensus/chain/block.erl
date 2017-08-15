@@ -2,7 +2,7 @@
 
 -export([block_to_header/1, test/0,
          height/1, prev_hash/1, txs/1, trees_hash/1, time/1, difficulty/1, comment/1, version/1, pow/1, trees/1, prev_hashes/1, 
-         get_by_height_in_chain/2, get_by_height/1, hash/1, get_by_hash/1, initialize_chain/0, make/4,
+         get_by_height_in_chain/2, get_by_height/1, get_with_sizecap/2, hash/1, get_by_hash/1, initialize_chain/0, make/4,
          mine/1, mine/2, mine2/2, check/1, 
          guess_number_of_cpu_cores/0, top/0,
          serialize/1, deserialize/1
@@ -154,6 +154,26 @@ get_by_height_in_chain(N, BH) when N > -1 ->
             end
     end.
 
+get_block(Block) when is_integer(Block) ->
+    get_by_height(Block);
+get_block(Block) -> %if it's not an integer then it's hash
+    get_by_hash(Block).
+
+get_with_sizecap(Cur, Cap) ->
+    X = get_block(Cur),
+    get_with_sizecap_internal(X, Cap).
+
+get_with_sizecap_internal(empty, _) ->
+    [];
+get_with_sizecap_internal(X, Cap) ->
+    Xsize = iolist_size(packer:pack(X)) + 1, %+1 for the delimeter char (,)
+    case Xsize > Cap of
+        true ->
+            [];
+        false ->
+            PH = prev_hash(X),
+            [X | get_with_sizecap(PH, Cap - Xsize)]
+end.
 
 prev_hash(0, BP) ->
     prev_hash(BP);
