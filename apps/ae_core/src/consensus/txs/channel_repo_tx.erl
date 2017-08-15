@@ -2,7 +2,10 @@
 
 -module(channel_repo_tx).
 -export([make/4,doit/3]).
--record(cr, {from = 0, nonce = 0, fee = 0, id = 0}).
+-record(cr, {from = 0,
+             nonce = 0,
+             fee = 0,
+             id :: channels:id()}).
 
 make(From, ID, Fee, Trees) ->
     Accounts = trees:accounts(Trees),

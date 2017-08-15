@@ -1,6 +1,13 @@
 -module(grow_channel_tx).
 -export([doit/3, make/5, good/1]).
--record(gc, {acc1 = 0, acc2 = 0, fee = 0, nonce = 0, inc1 = 0, inc2 = 0, channel_nonce = none, id = -1}).
+-record(gc, {acc1 = 0,
+             acc2 = 0,
+             fee = 0,
+             nonce = 0,
+             inc1 = 0,
+             inc2 = 0,
+             channel_nonce = none,
+             id :: channels:id()}).
 good(_Tx) ->
     %make sure they aren't taking our money.
     %check that it is still meeting the min_channel_ratio.

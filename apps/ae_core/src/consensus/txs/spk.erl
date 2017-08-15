@@ -17,7 +17,8 @@
 %So each contract needs a value saying how much of the money is locked into that contract.
 -record(spk, {acc1,acc2, entropy, 
 	      bets, space_gas, time_gas, 
-	      cid, amount = 0, nonce = 0,
+              cid :: channels:id(),
+              amount = 0, nonce = 0,
 	      delay = 0
 	     }).
 %scriptpubkey is the name that Satoshi gave to this part of the transactions in bitcoin.

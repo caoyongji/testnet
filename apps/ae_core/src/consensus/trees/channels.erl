@@ -1,4 +1,5 @@
 -module(channels).
+
 -export([new/8,serialize/1,deserialize/1,update/11,
 	 write/2,get/2,delete/2,root_hash/1,
 	 acc1/1,acc2/1,id/1,bal1/1,bal2/1,
@@ -7,9 +8,12 @@
 	 closed/1, shares/1,
          find_id/1,
 	 test/0]).
+
+-export_type([channel/0, id/0, root/0]).
+
 %This is the part of the channel that is written onto the hard drive.
 
--record(channel, {id = 0, %the unique id number that identifies this channel
+-record(channel, {id :: id(), %the unique id number that identifies this channel
 		  acc1 = 0, 
 		  acc2 = 0, 
 		  bal1 = 0, 
@@ -28,6 +32,11 @@
 		  shares = 0 %This is a pointer to the root of a tree that holds all the shares.
 		  }%
        ).
+
+-opaque id() :: non_neg_integer().
+-opaque channel() :: #channel{}.
+-opaque root() :: stem:stem_p().
+
 acc1(C) -> C#channel.acc1.
 acc2(C) -> C#channel.acc2.
 id(C) -> C#channel.id.
@@ -100,7 +109,7 @@ serialize(C) ->
     Entropy = C#channel.entropy,
     Delay = constants:channel_delay_bits(),
     true = (Entropy - 1) < math:pow(2, ENT),
-    true = (CID - 1) < math:pow(2, KL),
+    true = (CID - 1) < math:pow(2, KL), %% Q. Why `ID - 1` - as opposed to `ID` - `< 2 ^ KL`? Also similar computations in other points in this module.
     Amount = C#channel.amount,
     HB = constants:half_bal(),
     true = Amount < HB,
@@ -161,12 +170,17 @@ deserialize(B) ->
 	     last_modified = B7,
 	     entropy = B11, delay = B12,
 	     closed = CR}.
+
+-spec write(channel(), root()) -> NewRoot::root().
 write(Channel, Root) ->
     ID = Channel#channel.id,
     M = serialize(Channel),
     Shares = Channel#channel.shares,
-    trie:put(ID, M, Shares, Root, channels). %returns a pointer to the new root
+    trie:put(ID, M, Shares, Root, channels).
+
 id_size() -> constants:key_length().
+
+-spec get(id(), root()) -> {stem:hash(), empty | channel(), get:proof()}.
 get(ID, Channels) ->
     true = (ID - 1) < math:pow(2, id_size()),
     {RH, Leaf, Proof} = trie:get(ID, Channels, channels),
@@ -176,11 +190,15 @@ get(ID, Channels) ->
 		 X#channel{shares = leaf:meta(L)}
 	end,
     {RH, V, Proof}.
-delete(ID,Channels) ->
+
+-spec delete(id(), root()) -> NewRoot::root().
+delete(ID, Channels) ->
     trie:delete(ID, Channels, channels).
+
 root_hash(Channels) ->
     trie:root_hash(channels, Channels).
 
+-spec find_id(root()) -> id().
 find_id(Tree) ->
     find_id(1, Tree).
 find_id(N, Tree) ->
