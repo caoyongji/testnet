@@ -1,56 +1,70 @@
-%this is the only thing that contact the channel_manager. That way, we are safe from race-conditions on updating the channel state.
+%%% This is the only thing that contacts the channel_manager. 
+%%% That way, we are safe from race-conditions on updating the channel state.
 -module(channel_feeder).
 -behaviour(gen_server).
--export([start_link/0,code_change/3,handle_call/3,
-	 handle_cast/2,handle_info/2,init/1,terminate/2,
-	 new_channel/3,spend/2,close/2,lock_spend/7,
-	 agree_bet/4,garbage/0,entropy/1,
-	 new_channel_check/1,
-	 cid/1,them/1,script_sig_them/1,me/1,
-	 script_sig_me/1,
-	 update_to_me/2, new_cd/6, 
-	 make_locked_payment/4, live/1, they_simplify/3,
-	 bets_unlock/1, emsg/1, trade/4, trade/7
-	 ]).
--record(cd, {me = [], %me is the highest-nonced SPK signed by this node.
-	     them = [], %them is the highest-nonced SPK signed by the other node. 
-	     ssme = [], %ss is the highest nonced ScriptSig that works with me
-	     ssthem = [], %ss is the highest nonced ScriptSig that works with them. 
-	     emsg = [],
-	     live = true,
-	     entropy = 0,
-	     cid}). %live is a flag. As soon as it is possible that the channel could be closed, we switch the flag to false. We keep trying to close the channel, until it is closed. We don't update the channel state at all.
-emsg(X) ->
-    X#cd.emsg.
-live(X) ->
-    X#cd.live.
+
+-export([start_link/0, code_change/3, handle_call/3,
+         handle_cast/2, handle_info/2, init/1, terminate/2]).
+
+-export([new_channel/3, spend/2, close/2, lock_spend/7,
+         agree_bet/4, garbage/0, entropy/1, new_channel_check/1,
+         cid/1, them/1, script_sig_them/1, me/1, script_sig_me/1,
+         update_to_me/2, new_cd/6, make_locked_payment/4, live/1, 
+         they_simplify/3, bets_unlock/1, emsg/1, trade/4, trade/7]).
+
+%% live is a flag. As soon as it is possible that the channel could be closed, 
+%% we switch the flag to false. We keep trying to close the channel, 
+%% until it is closed. We don't update the channel state at all.
+
+-record(cd, {
+          me = [], % the highest-nonced SPK signed by this node
+          them = [], % the highest-nonced SPK signed by the other node
+          ssme = [], % the highest nonced ScriptSig that works with me
+          ssthem = [], % the highest nonced ScriptSig that works with them
+          emsg = [],
+          live = true,
+          entropy = 0,
+          cid
+         }). 
+
 new_cd(Me, Them, SSMe, SSThem, Entropy, CID) ->
-    #cd{me = Me, them = Them, ssthem = SSThem, ssme = SSMe, live = true, entropy = Entropy, cid = CID}.
+    #cd{
+       me = Me, 
+       them = Them, 
+       ssthem = SSThem, 
+       ssme = SSMe, 
+       live = true, 
+       entropy = Entropy, 
+       cid = CID
+      }.
+
+emsg(X) -> X#cd.emsg.
+live(X) -> X#cd.live.
 me(X) -> X#cd.me.
-cid({ok, CD}) -> cid(CD);
-cid(X) when is_binary(X) ->
-    %{ok, CD} = channel_manager:read(X),
-    %cid(CD);
-    %{ok, CD} = 
-    cid(channel_manager:read(X));
-    %CD#cd.cid;
-cid(X) when is_record(X, cd) -> X#cd.cid;
-cid(error) -> undefined;
-cid(X) -> cid(other(X)).
 them(X) -> X#cd.them.
 script_sig_them(X) -> X#cd.ssthem.
 script_sig_me(X) -> X#cd.ssme.
+
+cid({ok, CD}) -> cid(CD);
+cid(X) when is_binary(X) -> cid(channel_manager:read(X));
+cid(X) when is_record(X, cd) -> X#cd.cid;
+cid(error) -> undefined;
+cid(X) -> cid(other(X)).
+
 init(ok) -> {ok, []}.
 start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, ok, []).
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
-terminate(_, _) -> io:format("died!"), ok.
+terminate(_, _) -> ok.
 handle_info(_, X) -> {noreply, X}.
+
 handle_cast(garbage, X) ->
-    %check if any of the channels haven't existed in the last free_constants:fork_tolerance() blocks. If it hasn't, then delete it.
+    %% check if any of the channels haven't existed in the last 
+    %% free_constants:fork_tolerance() blocks. If it hasn't, then delete it.
     Keys = channel_manager:keys(),
     {C, OldC} = c_oldc(),
     garbage_helper(Keys, C, OldC),
     {noreply, X};
+
 handle_cast({new_channel, Tx, SSPK, _Accounts}, X) ->
     %a new channel with our ID was just created on-chain. We should record an empty SPK in this database so we can accept channel payments.
     SPK = testnet_sign:data(SSPK),
