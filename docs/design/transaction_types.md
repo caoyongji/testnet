@@ -16,7 +16,7 @@ These are the 18 types of transaction that can be in blocks.
 * channel_solo_close
 * channel_slash
 * channel_timeout
-* channel_recycle
+* channel_recycle -- not implemented yet
 
 5 transactions for the oracle:
 * oracle_new
