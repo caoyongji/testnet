@@ -4,7 +4,8 @@
 	 acc1/1,acc2/1,id/1,bal1/1,bal2/1,
 	 last_modified/1, entropy/1,
 	 nonce/1,delay/1, amount/1, slasher/1,
-	 closed/1, shares/1, 
+	 closed/1, shares/1,
+         find_id/1,
 	 test/0]).
 %This is the part of the channel that is written onto the hard drive.
 
@@ -179,7 +180,15 @@ delete(ID,Channels) ->
     trie:delete(ID, Channels, channels).
 root_hash(Channels) ->
     trie:root_hash(channels, Channels).
-    
+
+find_id(Tree) ->
+    find_id(1, Tree).
+find_id(N, Tree) ->
+    case get(N, Tree) of
+        {_, empty, _} -> N;
+        _ -> find_id(N+1, Tree)
+    end.
+
 test() ->
     ID = 1,
     Acc1 = constants:master_pub(),
@@ -196,5 +205,3 @@ test() ->
     NewLoc = write(C, 0),
     {_, C, _} = get(ID, NewLoc),
     success.
-    
-
