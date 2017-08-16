@@ -1,4 +1,4 @@
--module(channel_solo_close).
+-module(channel_solo_close_tx).
 -export([doit/3, make/5]).
 -record(csc, {from, nonce, fee = 0, 
 	      scriptpubkey, scriptsig}).
