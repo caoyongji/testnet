@@ -1,14 +1,19 @@
 -module(channels).
+
 -export([new/8,serialize/1,deserialize/1,update/11,
 	 write/2,get/2,delete/2,root_hash/1,
 	 acc1/1,acc2/1,id/1,bal1/1,bal2/1,
 	 last_modified/1, entropy/1,
 	 nonce/1,delay/1, amount/1, slasher/1,
-	 closed/1, shares/1, 
+	 closed/1, shares/1,
+         find_id/1,
 	 test/0]).
+
+-export_type([channel/0, id/0, root/0]).
+
 %This is the part of the channel that is written onto the hard drive.
 
--record(channel, {id = 0, %the unique id number that identifies this channel
+-record(channel, {id :: id(), %the unique id number that identifies this channel
 		  acc1 = 0, 
 		  acc2 = 0, 
 		  bal1 = 0, 
@@ -16,17 +21,22 @@
 		  amount = 0, %this is how we remember the outcome of the last contract we tested, that way we can undo it.
 		  nonce = 0,%How many times has this channel-state been updated. If your partner has a state that was updated more times, then they can use it to replace your final state.
 		  timeout_height = 0,%when one partner disappears, the other partner needs to wait so many blocks until they can access their money. This records the time they started waiting. 
-		  last_modified = 0,%this is used so that the owners of the channel can pay a fee for how long the channel has been open.
+                  last_modified :: headers:height(), %this is used so that the owners of the channel can pay a fee for how long the channel has been open. This is also used for deciding whether a channel has been closed for long enough for reusing its id.
 % we can set timeout_height to 0 to signify that we aren't in timeout mode. So we don't need the timeout flag.
 		  %mode = 0,%0 means an active channel where money can be spent. 1 means that the channel is being closed by acc1. 2 means that the channel is being closed by acc2.
 		  entropy = 0, %This is a nonce so that old channel contracts can't be reused, even if you make a new channel with the same partner you previously had a channel with.
 		  delay = 0,%this is how long you have to wait since "last_modified" to do a channel_timeout_tx.
 		  %we need to store this between a solo_close_tx and a channel_timeout_tx. That way we know we waited for long enough.
 		  slasher = 0, %this is how we remember who was the last user to do a slash on a channel. If he is the last person to slash, then he gets a reward.
-		  closed = false, %when a channel is closed, set this to 1. The channel can no longer be modified, but the VM has access to the state it was closed on. So you can use a different channel to trustlessly pay whoever slashed.
+		  closed = false :: boolean(), %when a channel is closed, set this to true. The channel can no longer be modified, but the VM has access to the state it was closed on. So you can use a different channel to trustlessly pay whoever slashed.
 		  shares = 0 %This is a pointer to the root of a tree that holds all the shares.
 		  }%
        ).
+
+-opaque id() :: non_neg_integer().
+-opaque channel() :: #channel{}.
+-opaque root() :: stem:stem_p().
+
 acc1(C) -> C#channel.acc1.
 acc2(C) -> C#channel.acc2.
 id(C) -> C#channel.id.
@@ -99,7 +109,7 @@ serialize(C) ->
     Entropy = C#channel.entropy,
     Delay = constants:channel_delay_bits(),
     true = (Entropy - 1) < math:pow(2, ENT),
-    true = (CID - 1) < math:pow(2, KL),
+    true = (CID - 1) < math:pow(2, KL), %% Q. Why `ID - 1` - as opposed to `ID` - `< 2 ^ KL`? Also similar computations in other points in this module.
     Amount = C#channel.amount,
     HB = constants:half_bal(),
     true = Amount < HB,
@@ -160,12 +170,17 @@ deserialize(B) ->
 	     last_modified = B7,
 	     entropy = B11, delay = B12,
 	     closed = CR}.
+
+-spec write(channel(), root()) -> NewRoot::root().
 write(Channel, Root) ->
     ID = Channel#channel.id,
     M = serialize(Channel),
     Shares = Channel#channel.shares,
-    trie:put(ID, M, Shares, Root, channels). %returns a pointer to the new root
+    trie:put(ID, M, Shares, Root, channels).
+
 id_size() -> constants:key_length().
+
+-spec get(id(), root()) -> {stem:hash(), empty | channel(), get:proof()}.
 get(ID, Channels) ->
     true = (ID - 1) < math:pow(2, id_size()),
     {RH, Leaf, Proof} = trie:get(ID, Channels, channels),
@@ -175,11 +190,23 @@ get(ID, Channels) ->
 		 X#channel{shares = leaf:meta(L)}
 	end,
     {RH, V, Proof}.
-delete(ID,Channels) ->
+
+-spec delete(id(), root()) -> NewRoot::root().
+delete(ID, Channels) ->
     trie:delete(ID, Channels, channels).
+
 root_hash(Channels) ->
     trie:root_hash(channels, Channels).
-    
+
+-spec find_id(root()) -> id().
+find_id(Tree) ->
+    find_id(1, Tree).
+find_id(N, Tree) ->
+    case get(N, Tree) of
+        {_, empty, _} -> N;
+        _ -> find_id(N+1, Tree)
+    end.
+
 test() ->
     ID = 1,
     Acc1 = constants:master_pub(),
@@ -196,5 +223,3 @@ test() ->
     NewLoc = write(C, 0),
     {_, C, _} = get(ID, NewLoc),
     success.
-    
-

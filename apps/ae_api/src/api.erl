@@ -139,18 +139,12 @@ new_channel_tx(CID, Acc2, Bal1, Bal2, Entropy, Fee, Delay) ->
 new_channel_with_server(Bal1, Bal2, Delay) ->
     {Trees, _, _} = tx_pool:data(),
     Channels = trees:channels(Trees),
-    CID = find_id(channels, Channels),
+    CID = channels:find_id(Channels),
     {Trees, _, _} = tx_pool:data(),
     Governance = trees:governance(Trees),
     Cost = governance:get_value(nc, Governance),
     new_channel_with_server(?IP, ?Port, CID, Bal1, Bal2, ?Fee+Cost, Delay).
-find_id(Name, Tree) ->
-    find_id(Name, 1, Tree).
-find_id(Name, N, Tree) ->
-    case Name:get(N, Tree) of
-	{_, empty, _} -> N;
-	_ -> find_id(Name, N+1, Tree)
-    end.
+
 new_channel_with_server(IP, Port, CID, Bal1, Bal2, Fee, Delay) ->
     Acc1 = keys:pubkey(),
     {ok, Acc2} = talker:talk({pubkey}, IP, Port),
@@ -333,7 +327,7 @@ channel_slash(_CID, Fee, SPK, SS) ->
 new_question_oracle(Start, Question, DiffOracleID)->
     {Trees, _, _} = tx_pool:data(),
     Oracles = trees:oracles(Trees),
-    ID = find_id(oracles, Oracles),
+    ID = oracles:find_id(Oracles),
     new_question_oracle(Start, Question, DiffOracleID, ID).
 new_question_oracle(Start, Question, DiffOracleID, ID)->
     {Trees, _, _} = tx_pool:data(),
@@ -350,7 +344,7 @@ new_difficulty_oracle(Start, Difficulty) ->
     Governance = trees:governance(Trees),
     Cost = governance:get_value(oracle_new, Governance),
     Oracles = trees:oracles(Trees),
-    ID = find_id(oracles, Oracles),
+    ID = oracles:find_id(Oracles),
     new_difficulty_oracle(?Fee+Cost, Start, ID, Difficulty).
 new_difficulty_oracle(Fee, Start, ID, Difficulty) ->
     %used to measure the difficulty at which negative and positive shares are worth the same
@@ -361,7 +355,7 @@ new_governance_oracle(Start, GovName, GovAmount, DiffOracleID) ->
     GovNumber = governance:name2number(GovName),
     F = fun(Trs) ->
 		Oracles = trees:oracles(Trs),
-		ID = find_id(oracles, Oracles),
+		ID = oracles:find_id(Oracles),
 		{_, Recent, _} = oracles:get(DiffOracleID, Oracles),
 		Difficulty = oracles:difficulty(Recent) div 2,
 		Governance = trees:governance(Trs),

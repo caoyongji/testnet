@@ -1,9 +1,10 @@
 -module(new_channel_tx).
--export([doit/3, make/9, good/1, spk/2, cid/1,
+-export([doit/3, make/9, good/1, spk/2,
 	 entropy/1, acc1/1, acc2/1, id/1]).
 -record(nc, {acc1 = 0, acc2 = 0, fee = 0, nonce = 0, 
 	     bal1 = 0, bal2 = 0, entropy = 0, 
-	     delay = 10, id = -1}).
+	     delay = 10,
+             id :: channels:id()}).
 
 acc1(X) -> X#nc.acc1.
 acc2(X) -> X#nc.acc2.
@@ -37,7 +38,6 @@ good(Tx) ->
     io:fwrite(float_to_list(MCR)),
     io:fwrite("\n"),
     Frac > MCR.
-cid(Tx) -> Tx#nc.id.
 entropy(Tx) -> Tx#nc.entropy.
 spk(Tx, Delay) -> spk:new(Tx#nc.acc1, Tx#nc.acc2, Tx#nc.id,
 			  [], 0,0, 0, Delay, 

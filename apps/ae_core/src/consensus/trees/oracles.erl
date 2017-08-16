@@ -6,6 +6,7 @@
          set_orders/2, done_timer/1, set_done_timer/2,
          set_result/2, set_type/2, governance/1,
          governance_amount/1, creator/1, serialize/1,
+         find_id/1,
          test/0]).
 
 -define(name, oracles).
@@ -153,6 +154,13 @@ get(ID, Root) ->
         end,
     {RH, V, Proof}.
 
+find_id(Tree) ->
+    find_id(1, Tree).
+find_id(N, Tree) ->
+    case get(N, Tree) of
+        {_, empty, _} -> N;
+        _ -> find_id(N+1, Tree)
+    end.
 
 test() ->
     {Trees, _, _} = tx_pool:data(),

@@ -1,6 +1,10 @@
 -module(channel_timeout_tx).
 -export([doit/3, make/5]).
--record(timeout, {aid = 0, nonce = 0, fee = 0, cid = 0, shares}).
+-record(timeout, {aid = 0,
+                  nonce = 0,
+                  fee = 0,
+                  cid :: channels:id(),
+                  shares}).
 %If your partner is not helping you, this is how you start the process of closing the channel. 
 %you don't provide the channel state now, instead you use a channel_slash to provide that data.
 make(ID,Trees,CID,Shares,Fee) ->

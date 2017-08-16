@@ -14,6 +14,8 @@ to be reflected yet in the codebase are noted with a *TO-BE* prefix.
 nodes from the leaf to the root proving the inclusion of the chosen
 leaf datum.
 
+["State Merkle trees"](/docs/design/trees.md).
+
 ## Block-related data structures exchanged on the network
 
 The following describes the block-related data structures as exchanged

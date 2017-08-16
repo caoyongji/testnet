@@ -26,6 +26,9 @@ Every oracle has an order book. The order book is a linked list of orders. Each 
 ### Channels
 
 This tree stores channels by an integer channel id.
+Each channel id is meant to be non-negative and less-than-or-equal-to 2^24; hence it is representable using 32 bytes.
+
+See also the channel-related [transaction types](/docs/design/transaction_types.md).
 
 ### Accounts
 
