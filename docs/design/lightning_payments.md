@@ -3,20 +3,22 @@
 
 Send money to someone on the network that you are not sharing a state channel with. If you have a path of channels to the recipient you can use the nodes in between as proxies in order to trustlessly send money to the recipient.
 
-Lightning payments transfer funds between two participants connected through a single mediator node. It is accomplished by deploying the same contract on the two channels involved(see the [Aeternity whitepaper](https://blockchain.aeternity.com/%C3%A6ternity-blockchain-whitepaper.pdf), section II-B.1.a) that contains a hashlock. The payment is activated by revealing the secret of the hashlock.
+Lightning payments transfer funds between two participants connected through a single mediator node. It is accomplished by deploying the same contract on the two channels involved (see the [Aeternity whitepaper](https://blockchain.aeternity.com/%C3%A6ternity-blockchain-whitepaper.pdf), section II-B.1.a) that contains a hashlock. The payment is activated by revealing the secret of the hashlock.
 
 (For terminology used, see the glossary at the end.)
 
 ## Workflow
 
-We assume a channel is already opened to the proxy node with sufficient funds for the transaction.
+It is assumed that a channel is already opened to the proxy node and from that node to the receiver with sufficient funds for the transaction.
 
 ### Deploying contracts
-    Create payment:
-    Call `api:lightning_spend/5` with inputs: proxy node IP, port, receiver's pubkey, amount, fee
+
+Create payment by calling `api:lightning_spend/5` with inputs: proxy node IP, port, receiver's pubkey, amount and transaction fee
 
 #### Create new lightning
+
 We first grab the [scriptpubkey (SPK) and scriptsig (SS) scripts](smart_contracts.md) from `secrets:new_lightning/0`:
+
 1.  generate random (32) bytes, this will be used as a secret
 2.  calculate the hash of it
 3.  generate a compiled chalang **code** referring to the hash of the random bytes. It returns a stack of 4 values: 
@@ -29,9 +31,8 @@ We first grab the [scriptpubkey (SPK) and scriptsig (SS) scripts](smart_contract
     *   otherwise calculate hash of its top
         *   if matches the hash wired-in: [[], granularity, 2, 0]
         *   otherwise [[], 0, 1, 49]
-4.  generate **secret**: a compiled chalang declaration containing the base64 value of
-    the random bytes
-5.  a sanity check is performed that creates and runs a new bet with arbitrary amount, accounts, CID and space/time gases
+4.  generate **secret**: a compiled chalang declaration containing the random bytes generated, in base64 format.
+5.  (a sanity check is performed that creates and runs a new bet with arbitrary amount, accounts, CID and space/time gases)
 6.  return code, secret to `api:lightning_spend/7`
 
 #### Encrypt code and secret with pubkey of the proxy node (immediate receiver, fetch key)
@@ -41,6 +42,7 @@ We first grab the [scriptpubkey (SPK) and scriptsig (SS) scripts](smart_contract
 We call `channel_feeder:make_locked_payment` to create a new bet for the given amount and add it to the list of bets in the existing channel SPK (for the pubkey for this IP and port) and return the updated SPK signed by us.
 
 `channel_feeder:make_locked_payment/4` with input: pubkey of the proxy node, amount + fee, the lightning code and an empty proof.
+
 1.  take the highest-nonced SPK of our node from channel data (#cd.me)
 2.  create new bet with
     *   the code,
@@ -58,9 +60,10 @@ We call `channel_feeder:make_locked_payment` to create a new bet for the given a
 
 #### Send it to server via talker (locked_payment message)
 
-    We are giving money conditionally, and asking us to forward it with similar conditions to the receiver. The message passes on parameters of the payment, including the bet code and the code/secret pair encrypted with the pubkey of the recipient.
+We are giving money conditionally, and asking us to forward it with similar conditions to the receiver. The message passes on parameters of the payment, including the bet code and the code/secret pair encrypted with the pubkey of the recipient.
 
-    We tell the proxy node to make a locked payment, too, via `talker:talk`. On that node it goes to `ext_handler:doit({locked_payment` and then to `channel_feeder:handle_call({lock_spend`. The node cretaes two locked payments: one debiting the sender and one crediting the receiver:
+We tell the proxy node to make a locked payment, too, via `talker:talk`. On that node it goes to `ext_handler:doit({locked_payment` and then to `channel_feeder:handle_call({lock_spend`. The node cretaes two locked payments: one debiting the sender and one crediting the receiver:
+
 1.  `channel_feeder:handle_call({lock_spend`
     1.  First check that this channel is in the on-chain state with sufficient funds
         *   fail if amount <= 0
@@ -78,12 +81,12 @@ We call `channel_feeder:make_locked_payment` to create a new bet for the given a
 
 #### sender updates channel data
 
-`api:lightning_spend/5` asks channel_manager to update data of the channel to proxy node with the received SPK on both sides and adding empty signatures to ScriptSigs.
+`api:lightning_spend/5` asks channel_manager to update data of the channel to proxy node with the received SPK on both sides and adding empty placeholders to SS's.
 
 
 ### Activating payments on the path: pulling the channel
 
-Revealing the secret and updating of channels takes place when the channel is pulled.
+Revealing the secret and updating of channels takes place when the channel state is pulled.
 
 `api:pull_channel_state/1`, takes IP, port
 1.  Fetch the pubkey of the proxy node
@@ -93,8 +96,7 @@ Revealing the secret and updating of channels takes place when the channel is pu
     *   the channel data and
     *   the SPK in it on our side, signed by him
 5.  Simplify these
-    `channel_feeder:they_simplify/3`, takes the public key of the proxy node,
-    and the data data we fetched from the proxy node above
+    `channel_feeder:they_simplify/3`, takes the public key of the proxy node, and the channel data we fetched from the proxy node above
     1.  test if
         *   the channel id is live in the view of both sides
         *   the signature on the SPK fetched is valid
@@ -103,20 +105,23 @@ Revealing the secret and updating of channels takes place when the channel is pu
         `spk:force_update/3`
         *   run with with both SSes
             *   `spk:run/6`:
-                *   create Chalang state with block height we got from `tx_pool:data/0`
-                    and slash = 0 (i.e., not running as a solo_stop or slash transaction)
-                *   `spk:run2/5` fast mode (i.e., not crash safe/time limited)
-                    `spk:run/8` SS, bets (=codes), gases and delay from SPK, fun/var limits from
-                    governance
+                *   create Chalang state with block height we got from `tx_pool:data/0` and slash = 0 (i.e., not running as a solo_stop or slash transaction)
+                *   cycle through all SS elements and bets in our SPK: call a chain of `run` calls:
+                    `spk:run2/5` fast mode (i.e., not crash safe/time limited)
+                    `spk:run/8` SS, bets, gases and delay from SPK, fun/var limits from governance
                     `spk:run/11`:
-                    *   `spk:run3/7` with the first SS and code
-                        *   crash if SS is ?crash
-                        *   `spk:prove_facts/2`: nothing to prove as field `prove` is empty
+                    *   `spk:run3/7` with the first SS and bet
+                        *   (crash if SS is ?crash)
+                        *   `spk:prove_facts/2`: nothing to prove as field `prove` of our bet is empty
                         *   `chalang:run5/2` both for SS and code
-                        *   return {Amount * Bet#bet.amount div granularity, <<<< amount is just 0/1 * granularity
-                            nonce, shareRoot, delay, time_gas}
+                        *   return
+                            *   Amount * Bet#bet.amount div granularity (in fact, amount is just 0 or 1 times granularity, indicating if payment happens),
+                            *   nonce (relative, starts from 0)
+                            *   shareRoot (always [] in our case) @@TODO: shares
+                            *   delay (indicates outcome of code execution, see lightning code above)
+                            *   time_gas
                         *   `spk:run/11` for the remainder
-                *   return {Amount + SPK#spk.amount, NewNonce + SPK#spk.nonce, Shares, Delay}
+                *   return SPK's original + collected amount, nonce, Shares, maximum of delays
         *   Check nonces:
             *   unless new one is lower, to run all bets with the new SS'es and return
                 the new bets, SS'es amount and nonce
@@ -131,7 +136,7 @@ Revealing the secret and updating of channels takes place when the channel is pu
                                 *   if that fails, too move on to next bet2
                                 *   success: as next point
                             *   if succeeds, check delay in chalang stack
-                                *   >50:  failure, move on
+                                *   > 50:  failure, move on (never happens in lightning, code returns max 50)
                                 *   success, add SS to secrets, accumulate amount, move on
                     *   return remaining SS, updated SPK, learned secrets, accumulated SS
             *   return remaining SS, new SPK (theirs) signed
@@ -175,22 +180,6 @@ Revealing the secret and updating of channels takes place when the channel is pu
 
 4.  code duplication: running chalang for bets in several places
 
-## Chalang
-
-### run
-    expected to return [ShareRoot, Amount, Nonce, Delay | _] (`spk:run3`)
-
-1. run5
-   *   check well-formedness
-   *   run2
-
-2. run2
-   functions parsed
-   run4
-
-3. run4
-   basic constructs parsed
-
 
 ## Glossary
 
@@ -221,7 +210,7 @@ Revealing the secret and updating of channels takes place when the channel is pu
     *   accounts of the two endpoints
     *   account 2
     *   bets to be played
-    *   space and time gas (fees to be paid for storage and execution)
+    *   space and time gas (fees to be paid for storage and execution; rewards simple code, pervents infinite running in loops, etc.)
     *   amount: money paid deposited into the channel by participants when the channel is
         created and used during execution
     *   nonce
@@ -253,6 +242,3 @@ Revealing the secret and updating of channels takes place when the channel is pu
 
 ### gas
     Fee for using resources: space gas for storage and time-gas for execution.
-
-### Chalang
-    [Chalang](https://github.com/zack-bitcoin/chalang) a stack-based language implementing smart contracts.
