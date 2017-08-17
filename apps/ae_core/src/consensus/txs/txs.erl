@@ -32,8 +32,7 @@ digest2(Tx, Trees, H) ->
         oracle_close -> oracle_close_tx:doit(Tx, Trees, H);
         unmatched -> oracle_unmatched_tx:doit(Tx, Trees,H);
         oracle_shares -> oracle_shares_tx:doit(Tx,Trees,H);
-        coinbase -> coinbase_tx:doit(Tx, Trees, H);
-        X -> X = 2
+        coinbase -> coinbase_tx:doit(Tx, Trees, H)
     end.
 
 fees([]) -> 0;
