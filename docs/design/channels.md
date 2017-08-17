@@ -47,7 +47,7 @@ Remember: all the money in the channel can be trapped for as long as the longest
 
 There are 5 transaction types:
 
-2 that need to be signed by both: `channel_new`, `channel_team_close`,
+2 that need to be signed by both: `new_channel`, `channel_team_close`,
 and 3 that are signed by one: `channel_solo_close`, `channel_slash`, `channel_timeout`.
 
 If your partner disappears, and you want to close the channel, then you first publish a solo close, which gives the current state of the channel, which is defined by a turing complete contract that outputs a nonce.
