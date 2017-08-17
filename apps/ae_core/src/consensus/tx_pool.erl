@@ -91,17 +91,12 @@ code_change(_OldVsn, State, _Extra) ->
 
 initial_state() ->
     Header = block:initialize_chain(),
-    state2(Header).
+    state_from_block(block:get_by_hash(Header)).
+
 current_state() ->
-    Header = headers:top(),
-    state2(Header).
-state2(Header) ->
-    Block = block:get_by_hash(block:hash(Header)),
-    case Block of
-	empty -> 
-	    {ok, PrevHeader} = headers:read(headers:prev_hash(Header)),
-	    state2(PrevHeader);
-	_ ->
-	    #f{trees = block:trees(Block),
-	       height = block:height(Block)}
-    end.
+    B = block:top(),
+    state_from_block(B).
+
+state_from_block(B) ->
+    #f{trees = block:trees(B),
+       height = block:height(B)}.
