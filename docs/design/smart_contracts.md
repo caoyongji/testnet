@@ -1,4 +1,4 @@
-[Chalang](https://github.com/zack-bitcoin/chalang) implements the smart contract (script) language.
+[Chalang](https://github.com/aeternity/chalang) implements the smart contract (script) language.
 
 [ScriptPubKey (SPK)](https://bitcoin.org/en/glossary/pubkey-script) is a Bitcoin term.
 
