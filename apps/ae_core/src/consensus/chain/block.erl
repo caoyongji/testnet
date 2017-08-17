@@ -123,15 +123,16 @@ get_by_hash(H) ->
 
 -spec top() -> block().
 top() ->
-    TH = headers:top(),
-    top(TH).
+    most_recent_observed_block_in_chain(headers:top()).
 
-top(Header) ->
+-spec most_recent_observed_block_in_chain(Chain::headers:header()) -> block().
+most_recent_observed_block_in_chain(Header) ->
     case get_by_hash(hash(Header)) of
-        empty -> 
+        empty ->
             {ok, PrevHeader} = headers:read(headers:prev_hash(Header)),
-            top(PrevHeader);
-        Block -> Block
+            most_recent_observed_block_in_chain(PrevHeader);
+        Block ->
+            Block
     end.
 
 lg(X) when is_integer(X) andalso X > 0 ->
