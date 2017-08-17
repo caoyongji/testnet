@@ -43,8 +43,8 @@ int 50 int 1 int 0 nil crash else then  drop drop
 hash binary " ++ integer_to_list(constants:hash_size())++ " " ++
 	binary_to_list(base64:encode(SH)) ++
 	" print == swap drop swap drop if
-int 0 int 2 int 10000
-else
+int 0 int 2 int " ++ integer_to_list(constants:channel_granularity()) ++
+" else
 int 49 int 1 int 0 then nil crash",
     ESS = "binary " ++ integer_to_list(constants:hash_size()) ++ " " ++ base64:encode(S),
     Code = compiler_chalang:doit(list_to_binary(ESH)),
