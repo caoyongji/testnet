@@ -80,7 +80,7 @@ absorb_internal(SignedTx) ->
     {Trees, Height, Txs} = tx_pool:data(),
     Governance = trees:governance(Trees),
     Tx = testnet_sign:data(SignedTx),
-    Fee = element(4, Tx),
+    Fee = txs:fee_from_tx_with_fee(Tx),
     Type = element(1, Tx),
     Cost = governance:get_value(Type, Governance),
     {ok, MinimumTxFee} = application:get_env(ae_core, minimum_tx_fee),

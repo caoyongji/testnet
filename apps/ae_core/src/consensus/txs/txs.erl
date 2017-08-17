@@ -3,6 +3,18 @@
 %% API
 -export([digest/3,
          fees/1]).
+-export([fee_from_tx_with_fee/1]).
+
+-export_type([tx/0,
+              tx_with_fee/0, fee/0]).
+
+-define(FEE_POSITION_IN_TX, 4).
+
+-opaque tx() :: tx_with_fee() | coinbase_tx:coinbase_tx().
+-opaque tx_with_fee() :: tuple_of_minimum_size(?FEE_POSITION_IN_TX).
+-type fee() :: integer().
+
+-type tuple_of_minimum_size(_MinSize) :: tuple().
 
 %% API functions
 
@@ -13,6 +25,8 @@ digest([SignedTx | Txs], Trees, Height) ->
     Tx = testnet_sign:data(SignedTx),
     NewTrees = digest2(Tx, Trees, Height),
     digest(Txs, NewTrees, Height).
+
+-spec digest2(tx(), trees:trees(), headers:height()) -> NewTrees::trees:trees().
 digest2(Tx, Trees, H) ->
     case element(1, Tx) of
         create_acc_tx -> create_account_tx:doit(Tx, Trees, H);
@@ -37,4 +51,8 @@ digest2(Tx, Trees, H) ->
 
 fees([]) -> 0;
 fees([H | T]) ->
-    element(4, element(2, H)) + fees(T).
+    fee_from_tx_with_fee(element(2, H)) + fees(T).
+
+-spec fee_from_tx_with_fee(tx_with_fee()) -> fee().
+fee_from_tx_with_fee(Tx) ->
+    element(?FEE_POSITION_IN_TX, Tx).

@@ -1,6 +1,13 @@
 -module(coinbase_tx).
+
 -export([doit/3, make/2, from/1]).
--record(coinbase, {from = 0, nonce = 0}).
+
+-export_type([coinbase_tx/0]).
+
+-record(coinbase, {from = 0, nonce = 0}). %% No fee.
+
+-opaque coinbase_tx() :: #coinbase{}.
+
 from(X) -> X#coinbase.from.
 make(From, Trees) ->
     Accounts = trees:accounts(Trees),
