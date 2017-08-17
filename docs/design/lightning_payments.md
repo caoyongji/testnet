@@ -21,16 +21,17 @@ We first grab the [scriptpubkey (SPK) and scriptsig (SS) scripts](smart_contract
 
 1.  generate random (32) bytes, this will be used as a secret
 2.  calculate the hash of it
-3.  generate a compiled chalang **code** referring to the hash of the random bytes. It returns a stack of 4 values: 
+3.  generate a compiled chalang **code** referring to the hash of the random bytes. 
+    *   It returns a stack of 4 values: 
         *   shared root: always []
         *   amount 0 or 1 times channel granularity
         *   nonce
         *   delay
-    code:
-    *   if the stack is empty: [[], 0, 1, 50]
-    *   otherwise calculate hash of its top
-        *   if matches the hash wired-in: [[], granularity, 2, 0]
-        *   otherwise [[], 0, 1, 49]
+    *   code (see section *lightning code* in [Chalang documemtation](chalang.md] for details):
+        *   if the stack is empty: [[], 0, 1, 50] (sanity check)
+        *   otherwise calculate hash of its top
+            *   if matches the hash wired-in: [[], granularity, 2, 0]
+            *   otherwise [[], 0, 1, 49]
 4.  generate **secret**: a compiled chalang declaration containing the random bytes generated, in base64 format.
 5.  (a sanity check is performed that creates and runs a new bet with arbitrary amount, accounts, CID and space/time gases)
 6.  return code, secret to `api:lightning_spend/7`
@@ -62,7 +63,7 @@ We call `channel_feeder:make_locked_payment` to create a new bet for the given a
 
 We are giving money conditionally, and asking us to forward it with similar conditions to the receiver. The message passes on parameters of the payment, including the bet code and the code/secret pair encrypted with the pubkey of the recipient.
 
-We tell the proxy node to make a locked payment, too, via `talker:talk`. On that node it goes to `ext_handler:doit({locked_payment` and then to `channel_feeder:handle_call({lock_spend`. The node cretaes two locked payments: one debiting the sender and one crediting the receiver:
+We tell the proxy node to make a locked payment, too, via `talker:talk`. On that node it goes to `ext_handler:doit({locked_payment` and then to `channel_feeder:handle_call({lock_spend`. The node creates two locked payments: one debiting the sender and one crediting the receiver:
 
 1.  `channel_feeder:handle_call({lock_spend`
     1.  First check that this channel is in the on-chain state with sufficient funds
@@ -121,24 +122,20 @@ Revealing the secret and updating of channels takes place when the channel state
                             *   delay (indicates outcome of code execution, see lightning code above)
                             *   time_gas
                         *   `spk:run/11` for the remainder
-                *   return SPK's original + collected amount, nonce, Shares, maximum of delays
+                *   return SPK's original + collected amount, nonce, shares, maximum of delays
         *   Check nonces:
             *   unless new one is lower, to run all bets with the new SS'es and return
                 the new bets, SS'es amount and nonce
-            *   if higher,
-                `spk:simplify_helper/2`
-                    try to unlock bets in in the SPK of the CD in my side using their SS
-                    `spk:bet_unlock/2`
-                    *   `spk:bet_unlock/8`
-                        *   if no secret can be read (`secret:read/1`) check next bet2
-                        *   if secret available, try to run bet in chalang
-                            *   if fails, try to run with 1st SS instead of secret
-                                *   if that fails, too move on to next bet2
-                                *   success: as next point
-                            *   if succeeds, check delay in chalang stack
-                                *   > 50:  failure, move on (never happens in lightning, code returns max 50)
-                                *   success, add SS to secrets, accumulate amount, move on
-                    *   return remaining SS, updated SPK, learned secrets, accumulated SS
+            *   if higher: `channel_feeder:simplify_helper/2`: try to unlock bets in in the SPK of the CD in my side using their SS. `spk:bet_unlock/2`, calling `spk:bet_unlock/8`
+                *   if no secret can be read (`secret:read/1`) check next bet2
+                *   if secret available, try to run bet in chalang
+                *   if fails, try to run with 1st SS instead of secret
+                    *   if that fails, too move on to next bet2
+                    *   success: as next point
+                *   if succeeds, check delay in chalang stack
+                    *   > 50:  failure, move on (never happens in lightning, code returns max 50)
+                    *   success, add SS to secrets, accumulate amount, move on
+                *   return remaining SS, updated SPK, learned secrets, accumulated SS
             *   return remaining SS, new SPK (theirs) signed
     3.  Check if the update returns the SPK and SS of other side.
         *   If it does, accept it on our side: update our CD with these on our side.
@@ -172,73 +169,73 @@ Revealing the secret and updating of channels takes place when the channel state
 
 ## Problems
 
-1.  bet evaluation: uses granularity from constants but the chalang code in secrets.erl has it wired-in.
+1.  chalang: duplication of opcodes, error-prone
 
-2.  chalang: duplication of opcodes, error-prone
+2.  almost all sanity tests rely on badmatch/crash
 
-3.  almost all tests rely on badmatch/crash
-
-4.  code duplication: running chalang for bets in several places
+3.  code duplication: running chalang for bets in several places
 
 
 ## Glossary
 
 
 ### account
-    A pubkey identifying a participant.
+
+A pubkey identifying a participant.
 
 ### channel
-    Connection between two participants, created in order to perform some transctions.
+
+Connection between two participants, created in order to perform some transctions.
 
 ### CID
-    Channel ID. A network-wide unique number assigned to the channel.
+
+Channel ID. A network-wide unique number assigned to the channel.
 
 ### bet
-    Contains:
-    *   code to execute
-    *   amount that goes to one of the participant depending on the outcome
-    *   prove
-    *   key: used to pattern-match that use the same contract. aiding channel updating.
-        The code itself is used as key for lightning payments.
+
+Contains:
+*   code to execute
+*   amount that goes to one of the participant depending on the outcome
+*   prove
+*   key: used to pattern-match that use the same contract. aiding channel updating.
+    The code itself is used as key for lightning payments.
 
 ### SPK, script pubkey
-    [SPK, script pubkey](https://bitcoin.org/en/glossary/pubkey-script) is a Bitcoin term.
-    There is a ScriptSig(SS) in addition, storing data for the SPK.
-    Both participants sign the SPK, only one of them signs the SS.
-    A record that contains
-    *   CID
-    *   accounts of the two endpoints
-    *   account 2
-    *   bets to be played
-    *   space and time gas (fees to be paid for storage and execution; rewards simple code, pervents infinite running in loops, etc.)
-    *   amount: money paid deposited into the channel by participants when the channel is
-        created and used during execution
-    *   nonce
-    *   entropy
-    *   delay: a delay value the two participants agreed upon when the channel was created.
-        When one of them tries to close the channel unilaterally, the other has this much
-        time to intervene. It is advisable to agree on a large enough value in order to
-        protect ourselves from the other party's possible dishonesty.
+
+[SPK, script pubkey](https://bitcoin.org/en/glossary/pubkey-script) is a Bitcoin term.
+There is a ScriptSig(SS) in addition, storing data for the SPK.
+Both participants sign the SPK, only one of them signs the SS.
+A record that contains
+*   CID
+*   accounts of the two endpoints
+*   account 2
+*   bets to be played
+*   space and time gas (fees to be paid for storage and execution; rewards simple code, pervents infinite running in loops, etc.)
+*   amount: money paid deposited into the channel by participants when the channel is
+    created and used during execution
+*   nonce
+*   entropy
+*   delay: a delay value the two participants agreed upon when the channel was created. When one of them tries to close the channel unilaterally, the other has this much time to intervene. It is advisable to agree on a large enough value in order to protect ourselves from the other party's possible dishonesty.
 
 ### SS, script sig
-    List of items to be signed by one of the participants.
+
+List of items to be signed by one of the participants.
 
 ### CD, channel data
-    *   me
-        the highest-nonced SPK signed by me
-    *   them
-        the highest-nonced SPK signed by them
-    *   ssme
-        the highest nonced ScriptSig that works with me
-    *   ssthem
-        the highest nonced ScriptSig that works with them
-    *   emsg
-        encoded message? And why encoded for the proxy??
-    *   live
-        setting it to false marks channel as being closed, no more data changes
-    *   entropy
-    *   cid
-        channel id
+*   *me* the highest-nonced SPK signed by me
+*   #them# the highest-nonced SPK signed by them
+*   ssme
+    the highest nonced ScriptSig that works with me
+*   ssthem
+    the highest nonced ScriptSig that works with them
+*   emsg
+    encoded message? And why encoded for the proxy??
+*   live
+    setting it to false marks channel as being closed, no more data changes
+*   entropy
+*   cid
+    channel id
 
 ### gas
-    Fee for using resources: space gas for storage and time-gas for execution.
+
+Fee for using resources: space gas for storage and time-gas for execution.
