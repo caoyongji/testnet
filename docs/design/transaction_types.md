@@ -4,9 +4,9 @@ The miner profits by including transactions that pay above the minimum fee for t
 These are the 18 types of transaction that can be in blocks.
 
 4 transactions for accounts:
-* account_new
-* account_spend
-* account_delete
+* create_account
+* spend
+* delete_account
 * account_recycle
 
 7 transactions for channels:
@@ -32,19 +32,19 @@ These are the 18 types of transaction that can be in blocks.
 1 transaction for the miner:
 * coinbase
 
-# account_new
+# create_account
 
 This creates a new account on the blockchain and gives it some tokens and possibly some shares.
 The account loses a little money every block. This stops attackers from making tons of accounts to spam the network.
 
-# account_spend
+# spend
 
 Spends AE tokens and/or shares to a different account.
 
-# account_delete
+# delete_account
 
 This deletes an account on the blockchain and sends all of it's AE tokens to a different account.
-Warning, this deletes all your share. Make sure to use account_spend to move all your shares somewhere else before deleting your account.
+Warning, this deletes all your share. Make sure to use the spend transaction to move all your shares somewhere else before deleting your account.
 
 # account_recycle
 
