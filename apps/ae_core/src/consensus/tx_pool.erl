@@ -19,9 +19,9 @@
          terminate/2,
          code_change/3]).
 
--record(f, {txs = [],
-            trees,
-            height = 0}).
+-record(state, {txs = [],
+                trees,
+                height = 0}).
 
 %% API functions
 
@@ -54,7 +54,7 @@ handle_call(dump, _From, _OldState) ->
     State = current_state(),
     {reply, 0, State};
 handle_call({absorb_tx, NewTrees, Tx}, _From, F) ->
-    NewTxs = [Tx | F#f.txs],
+    NewTxs = [Tx | F#state.txs],
     BlockSize = size(term_to_binary(NewTxs)),
     Governance = trees:governance(NewTrees),
     MaxBlockSize = governance:get_value(max_block_size, Governance),
@@ -62,17 +62,17 @@ handle_call({absorb_tx, NewTrees, Tx}, _From, F) ->
         case BlockSize > MaxBlockSize of
             true ->
                 lager:warning("Cannot absorb tx - block is already full"),
-                F#f.txs;
+                F#state.txs;
             false ->
                 NewTxs
         end,
-    {reply, 0, F#f{txs = FinalTxs, trees = NewTrees}};
+    {reply, 0, F#state{txs = FinalTxs, trees = NewTrees}};
 handle_call({absorb, NewTrees, Txs, _}, _From, _) ->
-    {reply, 0, #f{txs = Txs, trees = NewTrees}};
+    {reply, 0, #state{txs = Txs, trees = NewTrees}};
 handle_call(data, _From, F) ->
     {ok, Header} = headers:read(block:hash(headers:top())),
     H = headers:height(Header), %% Q. Why not using height in state? Change introduced in commit bbde8de
-    {reply, {F#f.trees, H, lists:reverse(F#f.txs)}, F}.
+    {reply, {F#state.trees, H, lists:reverse(F#state.txs)}, F}.
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -91,17 +91,12 @@ code_change(_OldVsn, State, _Extra) ->
 
 initial_state() ->
     Header = block:initialize_chain(),
-    state2(Header).
+    state_from_block(block:get_by_hash(Header)).
+
 current_state() ->
-    Header = headers:top(),
-    state2(Header).
-state2(Header) ->
-    Block = block:get_by_hash(block:hash(Header)),
-    case Block of
-	empty -> 
-	    {ok, PrevHeader} = headers:read(headers:prev_hash(Header)),
-	    state2(PrevHeader);
-	_ ->
-	    #f{trees = block:trees(Block),
-	       height = block:height(Block)}
-    end.
+    B = block:top(),
+    state_from_block(B).
+
+state_from_block(B) ->
+    #state{trees = block:trees(B),
+           height = block:height(B)}.

@@ -123,15 +123,19 @@ get_by_hash(H) ->
 
 -spec top() -> block().
 top() ->
-    TH = headers:top(),
-    top(TH).
+    top(headers:top()).
 
+%% The returned block the most recent *observed* block in the
+%% specified chain. I.e. it is not necessarily the block corresponding
+%% to the specified block header.
+-spec top(Chain::headers:header()) -> MostRecentObservedBlockInChain::block().
 top(Header) ->
     case get_by_hash(hash(Header)) of
-        empty -> 
+        empty ->
             {ok, PrevHeader} = headers:read(headers:prev_hash(Header)),
             top(PrevHeader);
-        Block -> Block
+        Block ->
+            Block
     end.
 
 lg(X) when is_integer(X) andalso X > 0 ->
