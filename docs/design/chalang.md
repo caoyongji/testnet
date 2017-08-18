@@ -22,7 +22,7 @@ then nil crash``
 *   `int 0`
     pushes the integer 0 on the stack
 *   `==`
-    compares the last to elements of the stack. pushes 1 (true) if they are equalm 0 otherwise. Compared elements are kept on the stack.
+    compares the last two elements of the stack. pushes 1 (true) if they are equal, 0 otherwise. Compared elements are kept on the stack.
 *   `if`
     removes top of the stack and, if nonzero, executes the code following up to the next `else` statement, otherwise the code after else up to a `then` statement
 *   `int 50 int 1 int 0`
@@ -32,7 +32,7 @@ then nil crash``
 *   `crash`
     finishes code execution and keeps the current stack which contains [[], 0, 1, 50, ...] at this point.
 *   `else`
-    followed by the code to be executed when the stack is non-empty. Nothing to execute this case.
+    followed by the code to be executed when the stack is non-empty. Nothing to execute in this case.
 *   `then`
 *   `drop drop`
     Removes the two elements added to the stack: stack  size and 0
@@ -41,7 +41,7 @@ then nil crash``
 *   `binary <hash_size> <hash>`
     pushes the hash we expect
 *   `print`
-    does nothing except printing the hashy expected
+    does nothing except printing the hash expected
 *   `==`
     pushes 1 if hashes match, 0 otherwise
 *   `swap drop swap drop`
