@@ -16,6 +16,8 @@ leaf datum.
 
 ["State Merkle trees"](/docs/design/trees.md).
 
+["Transaction"](/docs/design/transaction_types.md).
+
 ## Block-related data structures exchanged on the network
 
 The following describes the block-related data structures as exchanged
@@ -27,10 +29,16 @@ representation of data structures in the Erlang codebase.
 
 The block includes:
 * [Block header](#block-header);
-* Transactions;
+* Ordered representation of transactions;
   ```erlang
   #block.txs
   ```
+  * The first transaction is a `coinbase` transaction;
+  * No transaction after the first can be a `coinbase` transaction;
+    * *TO-BE The codebase does not check that no `coinbase` transaction is present after the first.  This shall be checked.*
+  * Each transaction has objective constraints on its presence in the
+    block.  For details on such criteria, please refer to the Erlang
+    code implementing transactions (files `*_tx.erl`).
 * Partial representation of state Merkle trees (i.e. accounts,
   channels, proof of existence, proof of burn and oracles) before
   application of transactions, specifically proof and datum of each
