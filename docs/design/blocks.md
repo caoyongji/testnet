@@ -131,6 +131,12 @@ DB = 16,
 
 See also [aeternity whitepaper] subsection "II-E.2) Light clients".
 
+### Genesis block
+
+The genesis block is a special block whose accounts state Merkle tree
+consists of one account with key `0` and balance the initial amount of
+tokens.  See `block:genesis_maker/0`.
+
 ## Node-local model of blocks
 
 The following describes the node-local internal representation of
