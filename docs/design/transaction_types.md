@@ -29,6 +29,9 @@ These are the 18 types of transaction that can be in blocks.
 * existence
 * burn
 
+1 transaction for the miner:
+* coinbase
+
 # account_new
 
 This creates a new account on the blockchain and gives it some tokens and possibly some shares.
@@ -138,3 +141,9 @@ The virtual machine can verify that data exists in the existence tree.
 This destroys some coins in a provable way.
 There will be a merkel tree that stores by address. It stores the number of coins that that address has burned.
 Anyone holding the private key for that address can prove how big of a burn they did.
+
+# coinbase
+
+This transaction contains the identifier of the account of the miner, so that it can be rewarded.
+It is included in the block by the miner.
+This transaction has no fee.
