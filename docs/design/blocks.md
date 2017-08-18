@@ -18,6 +18,10 @@ leaf datum.
 
 ["Transaction"](/docs/design/transaction_types.md).
 
+["Trie"](https://en.wikipedia.org/wiki/Trie).
+
+["Nibble"](https://en.wikipedia.org/wiki/Nibble).
+
 ## Block-related data structures exchanged on the network
 
 The following describes the block-related data structures as exchanged
@@ -41,8 +45,8 @@ The block includes:
     code implementing transactions (files `*_tx.erl`).
 * Partial representation of state Merkle trees (i.e. accounts,
   channels, proof of existence, proof of burn and oracles) before
-  application of transactions, specifically proof and datum of each
-  leaf affected by at least one transaction in the block.
+  application of transactions, specifically key, proof and datum of
+  each leaf affected by at least one transaction in the block.
   ```erlang
   #block.proofs
   ```
@@ -54,7 +58,7 @@ The block includes:
       the block, neither can the presence or the proof of most leaves
       not affected by at least one transaction in the block be
       determined only from the information in the block.
-  * *TO-BE The codebase holds a place but does not use such item.  The item shall be used.*
+  * *TO-BE The codebase holds a place but does not use such item.  The item shall be used.  It shall be defined as a (unsorted) collection, where each item consists of: key, proof, datum.*
 
 The block is serialized as per function `block:serialize/1`.
 
@@ -138,6 +142,56 @@ See also [aeternity whitepaper] subsection "II-E.2) Light clients".
 The genesis block is a special block whose accounts state Merkle tree
 consists of one account with key `0` and balance the initial amount of
 tokens.  See `block:genesis_maker/0`.
+
+### State Merkle trees
+
+The following describes the Merkle tree-specific elements of the state
+trees that are included, either directly or indirectly, in the block
+and/or its header.  The state trees are not exchanged fully among
+peers in the network.  [For some of the state Merkle
+trees](/docs/design/trees.md), the leaf datum contains the hash of the
+root of another Merkle tree.
+
+#### Key and path
+
+Each state Merkle tree has non-negative integer key - see
+`leaf:new/4`.  If the key of a state Merkle tree is logically not an
+integer, its hash is considered.  E.g. see `accounts:write/2`.
+
+Each state Merkle tree has the maximum size of its key statically
+configured - see `testnet_sup:start_link/0` and `leaf:new/4`.
+
+The tree is a trie where:
+* Each node has up to 16 (2^4) children - see module `stem`;
+* The path of the leaf is the key transformed as follows - see
+  `leaf:path/2`:
+  * Represented as unsigned integer on the statically configured
+    maximum size - big-endian;
+  * Reversed nibble by nibble.
+
+#### Hash
+
+Hash size is 32-byte - see `testnet_sup:start_link/0` and
+`constants:hash_size/0`.
+
+Hash computation is SHA-256 - see `leaf:hash/2` and `stem:hash/2` for
+the input values.
+
+#### Proof
+
+The proof of a leaf of a Merkle tree is a sequence of
+16-hashes-tuples, ordered according to the path of the leaf - see
+function `trie:get/3` and type `get:proof/0`.  Each 16-hashes-tuple is
+the tuple of hashes in a Merkle tree node.
+
+The proof is independent of the order of application of the operations.
+
+The proof has maximum length related to the statically-configured
+maximum size of the key.
+
+The trie compacts nodes with only one leaf - see `trie:put/5` and
+`delete/3` (and `store:store/3`).  Hence the proof has not a fixed
+size.
 
 ## Node-local model of blocks
 
@@ -261,8 +315,6 @@ Assuming that transactions in block are meant to be able to be applied in arbitr
 
 Confirm from the codebase that `#leaf.meta` (as opposed to `#leaf.value`) is not meant to be exchanged on the network as part of the data structures described in this document, then reconsider using the term "value" rather than "datum" for leaves of Merkle trees.
 
-Detail Merkle tree and Merkle proof.
-
 Include `#header.accumulative_difficulty` in this description.
 
 Decide whether to include `#block.comment` in this description.
@@ -276,3 +328,7 @@ Clarify appended-to-but-not-read-from file `data/headers.db`.
 Clarify multiple calls to `headers:absorb/1`.
 
 Clarify why sleeping 100 ms after absorbing block.
+
+Confirm Merkle trie compaction.
+
+Clarify relation between Merkle trie compaction and garbage collection - e.g. shall delete-after-put cause same proofs as before the put?
