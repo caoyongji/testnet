@@ -8,14 +8,16 @@ As an example, here is the code used for lightning payments, annotated:
 
 It is expected to return a stack with at least 4 values: [ShareRoot, Amount, Nonce, Delay | _].
 
-``stack_size int 0 ==
+```
+stack_size int 0 ==
 if
 int 50 int 1 int 0 nil crash
 else then
 drop drop hash binary <hash_size> <hash> print == swap drop swap drop 
 if int 0 int 2 int 10000
 else int 49 int 1 int 0
-then nil crash``
+then nil crash
+```
 
 *   `stack_size`
     measures the current size of the hash and pushes it on (the top of) the stack as a number
@@ -24,7 +26,7 @@ then nil crash``
 *   `==`
     compares the last two elements of the stack. pushes 1 (true) if they are equal, 0 otherwise. Compared elements are kept on the stack.
 *   `if`
-    removes top of the stack and, if nonzero, executes the code following up to the next `else` statement, otherwise the code after else up to a `then` statement
+    removes top of the stack and, if nonzero, executes the code following up to the next `else` statement, otherwise the code after `else` up to a `then` statement
 *   `int 50 int 1 int 0`
     stack content will be [0, 1, 50,...]
 *   `nil`
@@ -35,7 +37,7 @@ then nil crash``
     followed by the code to be executed when the stack is non-empty. Nothing to execute in this case.
 *   `then`
 *   `drop drop`
-    Removes the two elements added to the stack: stack  size and 0
+    Removes the two elements added to the stack: stack size and 0
 *   `hash`
     calculates the hash of the value that was at top at the beginning of execution. This is supposed to be the secret.
 *   `binary <hash_size> <hash>`
@@ -46,8 +48,8 @@ then nil crash``
     pushes 1 if hashes match, 0 otherwise
 *   `swap drop swap drop`
     removes the two values compared, keeps the result of comparison at top
-*   `if int 0 int 2 int ,granularity>`
-    if hashes match, results in [<granularity>, 2, 0, ...] in stack. ,granularity> is defined in `constants:channel_granularity()`, it is the amount of the bet.
+*   `if int 0 int 2 int <granularity>`
+    if hashes match, results in [`<granularity>`, 2, 0, ...] in stack. `<granularity>` is defined in `constants:channel_granularity()`, it is the amount of the bet.
 *   `else int 49 int 1 int 0`
     if hashes do not match results in [0, 1, 49] in stack
 *   `then nil crash`
