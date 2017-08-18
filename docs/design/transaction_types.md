@@ -7,7 +7,7 @@ These are the 18 types of transaction that can be in blocks.
 * create_account
 * spend
 * delete_account
-* account_recycle
+* account_recycle -- not implemented yet
 
 7 transactions for channels:
 * new_channel
