@@ -56,6 +56,8 @@ The block includes:
       determined only from the information in the block.
   * *TO-BE The codebase holds a place but does not use such item.  The item shall be used.*
 
+The block is serialized as per function `block:serialize/1`.
+
 See also [aeternity whitepaper] subsection "II-A.4) Block contents".
 
 ### Block header
